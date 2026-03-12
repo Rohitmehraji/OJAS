@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  MODERATOR
+  AFFILIATE_PARTNER
+}
+
+enum CourseType {
+  LIVE
+  RECORDED
+  HYBRID
+}
+
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  passwordHash      String?
+  phone             String?     @unique
+  role              Role
+  emailVerified     Boolean     @default(false)
+  twoFactorEnabled  Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  teacherProfile    TeacherProfile?
+  studentProfile    StudentProfile?
+  coursesCreated    Course[]    @relation("TeacherCourses")
+  bookings          Booking[]   @relation("StudentBookings")
+  reviews           Review[]
+  payouts           Payout[]
+}
+
+model TeacherProfile {
+  id                  String    @id @default(cuid())
+  userId               String    @unique
+  fullName             String
+  profilePicture       String?
+  bio                  String
+  skills               String[]
+  experienceYears      Int
+  languages            String[]
+  hourlyPrice          Decimal   @db.Decimal(10, 2)
+  availabilityCalendar Json
+  demoVideoUrl         String
+  identityStatus       String    @default("pending")
+  approvalStatus       String    @default("pending")
+  user                 User      @relation(fields: [userId], references: [id])
+}
+
+model StudentProfile {
+  id            String   @id @default(cuid())
+  userId         String   @unique
+  displayName    String
+  learningGoals  String[]
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model Course {
+  id            String      @id @default(cuid())
+  teacherId      String
+  title          String
+  description    String
+  type           CourseType
+  price          Decimal     @db.Decimal(10, 2)
+  isPublished    Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  teacher        User        @relation("TeacherCourses", fields: [teacherId], references: [id])
+  modules        Module[]
+  reviews        Review[]
+  bookings       Booking[]
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  courseId     String
+  title        String
+  orderIndex   Int
+  course       Course    @relation(fields: [courseId], references: [id])
+  lessons      Lesson[]
+  assignments  Assignment[]
+  quizzes      Quiz[]
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  moduleId     String
+  title        String
+  videoUrl     String?
+  content      String
+  module       Module   @relation(fields: [moduleId], references: [id])
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  moduleId     String
+  title        String
+  instructions String
+  dueDate      DateTime?
+  module       Module   @relation(fields: [moduleId], references: [id])
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  moduleId     String
+  title        String
+  meta         Json
+  module       Module   @relation(fields: [moduleId], references: [id])
+}
+
+model Booking {
+  id             String   @id @default(cuid())
+  studentId       String
+  courseId        String
+  liveSessionAt   DateTime
+  status          String
+  student         User     @relation("StudentBookings", fields: [studentId], references: [id])
+  course          Course   @relation(fields: [courseId], references: [id])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId         String
+  bookingId      String?
+  gateway        String
+  amount         Decimal  @db.Decimal(10, 2)
+  currency       String
+  paymentType    String
+  status         String
+  createdAt      DateTime @default(now())
+}
+
+model Payout {
+  id            String   @id @default(cuid())
+  userId         String
+  amount         Decimal  @db.Decimal(10, 2)
+  status         String
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  userId         String
+  courseId       String
+  teacherRating  Int
+  courseRating   Int
+  classRating    Int
+  feedback       String
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
+  course         Course   @relation(fields: [courseId], references: [id])
+}
